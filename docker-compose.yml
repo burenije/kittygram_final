@@ -1,27 +1,56 @@
-version: '3'
+services:
+  db:
+    image: postgres:13
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    image: kittygram_backend
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - static:/app/staticfiles
+      - media:/app/media
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=2).close()"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  frontend:
+    image: kittygram_frontend
+    build: ./frontend
+    command: ["cp", "-r", "/app/build/.", "/static/"]
+    volumes:
+      - static:/static
+
+  gateway:
+    image: kittygram_gateway
+    build: ./nginx
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${KITTYGRAM_PORT:-9000}:80"
+    volumes:
+      - static:/static:ro
+      - media:/media:ro
 
 volumes:
   pg_data:
   static:
-
-services:
-  db:
-    image: postgres:13
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-  backend:
-    build: ./backend/
-    env_file: .env
-  frontend:
-    env_file: .env
-    build: ./frontend/
-    command: cp -r /app/build/. /static/
-    volumes:
-      - static:/static
-  gateway:
-    build: ./nginx/
-    env_file: .env
-    ports:
-      - 9000:80
-    volumes:
-      - static:/static
+  media:

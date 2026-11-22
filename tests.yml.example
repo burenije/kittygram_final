@@ -1,0 +1,5 @@
+repo_owner: your-github-login
+kittygram_domain: https://kittygram.example.com
+taski_domain: https://taski.example.com
+dockerhub_username: your-docker-hub-login
+EDU_PROVISIONING_ID: s-replace-with-course-id
